@@ -15,6 +15,11 @@
 (define-constant err-unauthorized-verifier (err u108))
 (define-constant err-no-rewards (err u109))
 (define-constant err-invalid-species (err u110))
+(define-constant err-tree-not-verified (err u111))
+(define-constant err-tree-already-adopted (err u112))
+(define-constant err-insufficient-payment (err u113))
+(define-constant err-self-adoption (err u114))
+(define-constant err-adoption-expired (err u115))
 
 (define-map tree-metadata
     uint
@@ -62,6 +67,31 @@
 (define-map species-carbon-rates
     (string-ascii 50)
     uint
+)
+
+(define-map tree-adoption
+    uint
+    {
+        adopter: principal,
+        adoption-fee: uint,
+        adoption-date: uint,
+        adoption-duration: uint,
+        maintenance-fund: uint,
+    }
+)
+
+(define-map adoption-pricing
+    (string-ascii 50)
+    uint
+)
+
+(define-map adopter-stats
+    principal
+    {
+        trees-adopted: uint,
+        total-contributed: uint,
+        active-adoptions: uint,
+    }
 )
 
 (define-read-only (get-last-token-id)
@@ -121,6 +151,38 @@
 
 (define-read-only (get-species-carbon-rate (species (string-ascii 50)))
     (default-to u30 (map-get? species-carbon-rates species))
+)
+
+(define-read-only (get-tree-adoption (token-id uint))
+    (map-get? tree-adoption token-id)
+)
+
+(define-read-only (get-adoption-price (species (string-ascii 50)))
+    (default-to u1000000 (map-get? adoption-pricing species))
+)
+
+(define-read-only (get-adopter-stats (adopter principal))
+    (default-to {
+        trees-adopted: u0,
+        total-contributed: u0,
+        active-adoptions: u0,
+    }
+        (map-get? adopter-stats adopter)
+    )
+)
+
+(define-read-only (is-tree-adopted (token-id uint))
+    (is-some (get-tree-adoption token-id))
+)
+
+(define-read-only (is-adoption-active (token-id uint))
+    (match (get-tree-adoption token-id)
+        adoption-data (< burn-block-height
+            (+ (get adoption-date adoption-data)
+                (get adoption-duration adoption-data)
+            ))
+        false
+    )
 )
 
 (define-private (is-valid-coordinates
@@ -183,6 +245,26 @@
     )
 )
 
+(define-private (update-adopter-stats
+        (adopter principal)
+        (fee uint)
+        (is-new-adoption bool)
+    )
+    (let ((current-stats (get-adopter-stats adopter)))
+        (map-set adopter-stats adopter {
+            trees-adopted: (if is-new-adoption
+                (+ (get trees-adopted current-stats) u1)
+                (get trees-adopted current-stats)
+            ),
+            total-contributed: (+ (get total-contributed current-stats) fee),
+            active-adoptions: (if is-new-adoption
+                (+ (get active-adoptions current-stats) u1)
+                (get active-adoptions current-stats)
+            ),
+        })
+    )
+)
+
 (define-public (initialize-species-rates)
     (begin
         (asserts! (is-eq tx-sender contract-admin) err-owner-only)
@@ -193,6 +275,20 @@
         (map-set species-carbon-rates "cedar" u38)
         (map-set species-carbon-rates "willow" u20)
         (map-set species-carbon-rates "other" u30)
+        (ok true)
+    )
+)
+
+(define-public (initialize-adoption-pricing)
+    (begin
+        (asserts! (is-eq tx-sender contract-admin) err-owner-only)
+        (map-set adoption-pricing "oak" u2000000)
+        (map-set adoption-pricing "pine" u1500000)
+        (map-set adoption-pricing "maple" u1800000)
+        (map-set adoption-pricing "birch" u1200000)
+        (map-set adoption-pricing "cedar" u1600000)
+        (map-set adoption-pricing "willow" u1000000)
+        (map-set adoption-pricing "other" u1000000)
         (ok true)
     )
 )
@@ -325,11 +421,83 @@
     )
 )
 
+(define-public (update-adoption-pricing
+        (species (string-ascii 50))
+        (price uint)
+    )
+    (begin
+        (asserts! (is-eq tx-sender contract-admin) err-owner-only)
+        (map-set adoption-pricing species price)
+        (ok true)
+    )
+)
+
 (define-public (claim-rewards)
     (let ((rewards (get-verification-rewards tx-sender)))
         (asserts! (> rewards u0) err-no-rewards)
         (map-delete verification-rewards tx-sender)
         (ok rewards)
+    )
+)
+
+(define-public (adopt-tree
+        (token-id uint)
+        (duration uint)
+    )
+    (let (
+            (tree-data (unwrap! (get-tree-metadata token-id) err-invalid-token-id))
+            (adoption-fee (get-adoption-price (get tree-species tree-data)))
+            (planter (get planter tree-data))
+        )
+        (asserts! (get verified tree-data) err-tree-not-verified)
+        (asserts! (not (is-tree-adopted token-id)) err-tree-already-adopted)
+        (asserts! (not (is-eq tx-sender planter)) err-self-adoption)
+        (asserts! (> duration u0) err-invalid-token-id)
+
+        (try! (stx-transfer? adoption-fee tx-sender planter))
+
+        (map-set tree-adoption token-id {
+            adopter: tx-sender,
+            adoption-fee: adoption-fee,
+            adoption-date: burn-block-height,
+            adoption-duration: duration,
+            maintenance-fund: (/ adoption-fee u2),
+        })
+
+        (update-adopter-stats tx-sender adoption-fee true)
+
+        (ok token-id)
+    )
+)
+
+(define-public (extend-adoption
+        (token-id uint)
+        (additional-duration uint)
+    )
+    (let (
+            (adoption-data (unwrap! (get-tree-adoption token-id) err-invalid-token-id))
+            (tree-data (unwrap! (get-tree-metadata token-id) err-invalid-token-id))
+            (extension-fee (/ (get-adoption-price (get tree-species tree-data)) u2))
+            (planter (get planter tree-data))
+        )
+        (asserts! (is-eq tx-sender (get adopter adoption-data))
+            err-not-token-owner
+        )
+        (asserts! (is-adoption-active token-id) err-adoption-expired)
+        (asserts! (> additional-duration u0) err-invalid-token-id)
+
+        (try! (stx-transfer? extension-fee tx-sender planter))
+
+        (map-set tree-adoption token-id
+            (merge adoption-data {
+                adoption-duration: (+ (get adoption-duration adoption-data) additional-duration),
+                maintenance-fund: (+ (get maintenance-fund adoption-data) (/ extension-fee u2)),
+            })
+        )
+
+        (update-adopter-stats tx-sender extension-fee false)
+
+        (ok true)
     )
 )
 
@@ -388,3 +556,4 @@
 )
 
 (initialize-species-rates)
+(initialize-adoption-pricing)
