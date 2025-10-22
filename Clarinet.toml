@@ -4,10 +4,6 @@ description = "NFT-based tree planting proofs with verifications, adoptions, car
 authors = ["chongdahdavid9"]
 telemetry = false
 
-[contracts.tree-planting-proof-nft]
-path = "contracts/tree-planting-proof-nft.clar"
-clarity_version = 2
-
-[contracts.planter-leaderboard]
-path = "contracts/planter-leaderboard.clar"
-clarity_version = 2
+[contracts.charity-donation-tracker]
+path = "contracts/charity-donation-tracker.clar"
+clarity_version = 1
