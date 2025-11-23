@@ -1,0 +1,9 @@
+{
+  "name": "tree-planting-proof-nft",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "clarinet check"
+  },
+  "devDependencies": {}
+}

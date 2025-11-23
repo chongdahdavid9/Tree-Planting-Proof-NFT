@@ -1,0 +1,19 @@
+[network]
+name = "simnet"
+rpc_url = "http://localhost:20443"
+
+[accounts.deployer]
+mnemonic = "fetch outside black test wash cover just actual execute nice door want airport betray quantum stamp fish act pen trust portion fatigue scissors vague"
+balance = 100_000_000_000_000
+
+[accounts.wallet_1]
+mnemonic = "hold excess usual excess ring elephant install account glad dry fragile donkey gaze humble truck breeze nation gasp vacuum limb head keep delay hospital"
+balance = 100_000_000_000_000
+
+[accounts.wallet_2]
+mnemonic = "board list obtain sugar hour worth raven scout denial thunder horse logic fury scorpion fold genuine phrase wealth news aim below celery when cabin"
+balance = 100_000_000_000_000
+
+[accounts.wallet_3]
+mnemonic = "hand inmate canvas head butter smile token armor they cannot mean romance lucid chaos hoover effect custom husband ready parade basket memory better cease"
+balance = 100_000_000_000_000
