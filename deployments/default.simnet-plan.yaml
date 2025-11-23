@@ -1,0 +1,6 @@
+name: default
+stacks_network: simnet
+contracts:
+  charity-donation-tracker:
+    path: contracts/charity-donation-tracker.clar
+    depends_on: []

@@ -1,8 +1,12 @@
+[network]
+name = "simnet"
+rpc_url = "http://localhost:20443"
+
 [accounts.deployer]
 mnemonic = "fetch outside black test wash cover just actual execute nice door want airport betray quantum stamp fish act pen trust portion fatigue scissors vague"
 balance = 100_000_000_000_000
 
-[accounts.wallet_1]  
+[accounts.wallet_1]
 mnemonic = "hold excess usual excess ring elephant install account glad dry fragile donkey gaze humble truck breeze nation gasp vacuum limb head keep delay hospital"
 balance = 100_000_000_000_000
 
