@@ -28,6 +28,8 @@
 ;; Storage maps
 (define-map token-owner {id: uint} principal)
 
+(define-map token-approval {id: uint} principal)
+
 (define-map trees 
   {id: uint} 
   {
@@ -173,8 +175,44 @@
   (let ((current-owner (unwrap! (map-get? token-owner {id: id}) err-token-not-found)))
     (asserts! (is-eq tx-sender current-owner) err-not-owner)
     (map-set token-owner {id: id} to)
+    (map-delete token-approval {id: id})
     (ok true)
   )
+)
+
+(define-public (approve (id uint) (to principal))
+  (let ((current-owner (unwrap! (map-get? token-owner {id: id}) err-token-not-found)))
+    (asserts! (is-eq tx-sender current-owner) err-not-owner)
+    (map-set token-approval {id: id} to)
+    (ok true)
+  )
+)
+
+(define-public (revoke-approval (id uint))
+  (let ((current-owner (unwrap! (map-get? token-owner {id: id}) err-token-not-found)))
+    (asserts! (is-eq tx-sender current-owner) err-not-owner)
+    (map-delete token-approval {id: id})
+    (ok true)
+  )
+)
+
+(define-public (transfer-from (id uint) (from principal) (to principal))
+  (let ((current-owner (unwrap! (map-get? token-owner {id: id}) err-token-not-found)))
+    (asserts! (is-eq from current-owner) err-not-owner)
+    (let (
+      (is-owner (is-eq tx-sender current-owner))
+      (approved? (match (map-get? token-approval {id: id}) approver (is-eq approver tx-sender) false))
+    )
+      (asserts! (or is-owner approved?) err-unauthorized)
+      (map-set token-owner {id: id} to)
+      (map-delete token-approval {id: id})
+      (ok true)
+    )
+  )
+)
+
+(define-read-only (get-approved (id uint))
+  (map-get? token-approval {id: id})
 )
 
 (define-public (verify-tree (id uint))
