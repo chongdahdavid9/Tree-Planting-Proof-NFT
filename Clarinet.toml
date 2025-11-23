@@ -1,0 +1,13 @@
+[project]
+name = "Tree-Planting-Proof-NFT"
+description = "NFT-based tree planting proofs with verifications, adoptions, carbon offset; plus independent leaderboard."
+authors = ["chongdahdavid9"]
+telemetry = false
+
+[contracts.tree-planting-proof-nft]
+path = "contracts/tree-planting-proof-nft.clar"
+clarity_version = 1
+
+[contracts.planter-leaderboard]
+path = "contracts/planter-leaderboard.clar"
+clarity_version = 1
