@@ -218,13 +218,13 @@
 (define-public (adopt-tree (id uint))
   (let ((tree (unwrap! (map-get? trees {id: id}) err-token-not-found))
         (price (unwrap! (get adoption-price tree) err-not-listed))
-        (owner (unwrap! (map-get? token-owner {id: id}) err-token-not-found))
+        (current-owner (unwrap! (map-get? token-owner {id: id}) err-token-not-found))
         (fee (/ (* price (var-get platform-fee-bps)) u10000))
         (payout (- price fee)))
     (asserts! (get verified tree) err-not-verified)
     (asserts! (is-none (get adopter tree)) err-already-adopted)
     (try! (stx-transfer? fee tx-sender (var-get platform-treasury)))
-    (try! (stx-transfer? payout tx-sender owner))
+    (try! (stx-transfer? payout tx-sender current-owner))
     (map-set trees {id: id}
       (merge tree {
         adopter: (some tx-sender),
